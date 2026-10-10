@@ -69,6 +69,14 @@ wallpaper-picker
 Shows live thumbnails of `~/Pictures/wallpapers` in fuzzel; pick one and it's
 applied + themed. Use another folder with: `wallpapers=/path wallpaper-picker`.
 
+Bind it in your Hyprland config. **Important:** Hyprland's `exec` PATH is only
+`/usr/local/bin:/usr/bin`, so always use the full path for scripts in
+`~/.local/bin`:
+
+```lua
+hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("$HOME/.local/bin/wallpaper-picker"))
+```
+
 ### Commands
 
 ```sh
