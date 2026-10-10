@@ -21,10 +21,16 @@ command -v hyprctl  >/dev/null 2>&1 || missing="$missing hyprctl"
 command -v python3  >/dev/null 2>&1 || missing="$missing python3"
 command -v noctalia >/dev/null 2>&1 || missing="$missing noctalia"
 command -v magick   >/dev/null 2>&1 || command -v convert >/dev/null 2>&1 || missing="$missing imagemagick"
+# the grid wallpaper picker needs GTK4 + Python bindings
+if ! python3 -c "import gi; gi.require_version('Gtk','4.0')" 2>/dev/null; then
+    missing="$missing python-gobject(gtk4)"
+fi
 if [ -n "$missing" ]; then
     warn "missing commands:$missing"
-    if   command -v pacman >/dev/null 2>&1; then warn "install with: sudo pacman -S noctalia imagemagick python"
-    elif command -v apt    >/dev/null 2>&1; then warn "install with: sudo apt install imagemagick python3"
+    if command -v pacman >/dev/null 2>&1; then
+        warn "install with: sudo pacman -S noctalia imagemagick python python-gobject gtk4"
+        warn "optional (OSD popups): sudo pacman -S swayosd"
+    elif command -v apt    >/dev/null 2>&1; then warn "install with: sudo apt install imagemagick python3 gir1.2-gtk-4.0"
     elif command -v dnf    >/dev/null 2>&1; then warn "install with: sudo dnf install ImageMagick python3"
     fi
 fi
@@ -62,18 +68,45 @@ else
 fi
 
 if [ "$MODE" = lua ]; then
+    # migrate any bare `hypr-wallcolors` login hook to the full theme
+    if grep -q 'hl.exec_cmd("hypr-wallcolors")' "$CONF_DIR/hyprland.lua"; then
+        sed -i 's|hl.exec_cmd("hypr-wallcolors")|hl.exec_cmd("bash -c '"'"'$HOME/.local/bin/hypr-theme'"'"'")|' \
+            "$CONF_DIR/hyprland.lua"
+        say "upgraded login hook to full theme (hypr-theme)"
+    fi
+
     if ! grep -q "hypr-wallcolors" "$CONF_DIR/hyprland.lua"; then
         cat >> "$CONF_DIR/hyprland.lua" <<'EOF'
 
 -- >>> hypr-wallcolors >>>
--- Border colors generated from the current wallpaper (see ~/.local/bin/hypr-wallcolors).
+-- Wallpaper-driven theming (see ~/.local/bin/hypr-wallcolors).
+-- Border colors generated from the current wallpaper.
 pcall(dofile, os.getenv("HOME") .. "/.config/hypr/border-colors.lua")
-hl.on("hyprland.start", function() hl.exec_cmd("hypr-wallcolors") end)
+
+-- Apply the full theme (borders, kitty, fuzzel, cava, btop) on login.
+hl.on("hyprland.start", function()
+    hl.exec_cmd("bash -c '$HOME/.local/bin/hypr-theme'")
+end)
 -- <<< hypr-wallcolors <<<
 EOF
         say "patched $CONF_DIR/hyprland.lua"
     else
         say "hyprland.lua already integrated"
+    fi
+
+    # add the SUPER+W wallpaper-picker bind unless a W bind already exists
+    if grep -Eq '\+ *W(\b|")' "$CONF_DIR/hyprland.lua"; then
+        say "found an existing W keybind -- leaving it alone"
+    elif grep -q 'wallpaper-picker' "$CONF_DIR/hyprland.lua"; then
+        say "wallpaper-picker bind already present"
+    else
+        cat >> "$CONF_DIR/hyprland.lua" <<'EOF'
+
+-- >>> hypr-wallcolors: wallpaper picker >>>
+hl.bind("SUPER + W", hl.dsp.exec_cmd("bash -c '$HOME/.local/bin/wallpaper-picker'"))
+-- <<< hypr-wallcolors: wallpaper picker <<<
+EOF
+        say "bound SUPER+W to the wallpaper picker"
     fi
 elif [ "$MODE" = conf ]; then
     if ! grep -q "hypr-wallcolors" "$CONF_DIR/hyprland.conf"; then
