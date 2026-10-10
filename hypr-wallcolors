@@ -231,6 +231,12 @@ def record(path):
 
 
 def main():
+    argv = sys.argv[1:]
+    if "--print" in argv:
+        argv = [a for a in argv if a != "--print"]
+        sys.argv = ["hypr-wallcolors"] + argv[:1]
+        print(wallpaper() or "")
+        return
     wall = wallpaper()
     record(wall)
     colors = palette(wall) if wall else []

@@ -13,12 +13,15 @@ if command -v systemctl >/dev/null 2>&1; then
 fi
 
 rm -f "$HOME/.local/bin/hypr-wallcolors" \
+      "$HOME/.local/bin/hypr-theme" \
       "$HOME/.local/bin/hypr-set-wallpaper" \
+      "$HOME/.local/bin/wallpaper-picker" \
       "$CONF_DIR/border-colors.lua" \
       "$CONF_DIR/border-colors.conf" \
       "$UNIT_DIR/hypr-wallcolors.service" \
       "$UNIT_DIR/hypr-wallcolors.path"
-say "removed scripts, generated colors and systemd units"
+rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/noctalia/theme"
+say "removed scripts, generated colors, theme engine and systemd units"
 
 # strip the blocks the installer appended
 for f in "$CONF_DIR/hyprland.lua" "$CONF_DIR/hyprland.conf"; do

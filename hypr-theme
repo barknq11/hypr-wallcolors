@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Apply the current wallpaper's palette to the whole Hyprland session:
+# window borders + kitty + fuzzel + cava + btop (via Noctalia's template engine).
+#
+#   hypr-theme                 use the current wallpaper
+#   hypr-theme /path/to/img    use a specific image
+set -euo pipefail
+
+# systemd user services don't have ~/.local/bin on PATH
+export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
+THEME_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/noctalia/theme"
+CONFIG="$THEME_DIR/config.toml"
+
+wall=""
+[[ $# -ge 1 ]] && wall="$1"
+
+if [[ -z "$wall" || ! -f "$wall" ]]; then
+    wall="$(hypr-wallcolors --print)"
+fi
+if [[ -z "$wall" ]]; then
+    echo "hypr-theme: could not determine the current wallpaper" >&2
+    exit 1
+fi
+
+# 1. window borders
+hypr-wallcolors "$wall"
+
+# 2. kitty / fuzzel / cava / btop.
+if command -v noctalia >/dev/null 2>&1 && [[ -f "$CONFIG" ]]; then
+    noctalia theme "$wall" -c "$CONFIG" --default-mode dark || true
+else
+    echo "hypr-theme: noctalia or theme config missing ($CONFIG), skipping app theming" >&2
+fi

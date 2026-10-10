@@ -19,10 +19,11 @@ die()  { printf '\033[1;31mxx\033[0m %s\n' "$*" >&2; exit 1; }
 missing=""
 command -v hyprctl  >/dev/null 2>&1 || missing="$missing hyprctl"
 command -v python3  >/dev/null 2>&1 || missing="$missing python3"
+command -v noctalia >/dev/null 2>&1 || missing="$missing noctalia"
 command -v magick   >/dev/null 2>&1 || command -v convert >/dev/null 2>&1 || missing="$missing imagemagick"
 if [ -n "$missing" ]; then
     warn "missing commands:$missing"
-    if   command -v pacman >/dev/null 2>&1; then warn "install with: sudo pacman -S imagemagick python"
+    if   command -v pacman >/dev/null 2>&1; then warn "install with: sudo pacman -S noctalia imagemagick python"
     elif command -v apt    >/dev/null 2>&1; then warn "install with: sudo apt install imagemagick python3"
     elif command -v dnf    >/dev/null 2>&1; then warn "install with: sudo dnf install ImageMagick python3"
     fi
@@ -31,12 +32,23 @@ fi
 # --- install executables -----------------------------------------------------
 mkdir -p "$BIN_DIR"
 install -m755 "$SRC/hypr-wallcolors"     "$BIN_DIR/hypr-wallcolors"
+install -m755 "$SRC/hypr-theme"          "$BIN_DIR/hypr-theme"
 install -m755 "$SRC/hypr-set-wallpaper"  "$BIN_DIR/hypr-set-wallpaper"
+install -m755 "$SRC/wallpaper-picker"    "$BIN_DIR/wallpaper-picker"
 say "installed scripts to $BIN_DIR"
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;
     *) warn "$BIN_DIR is not in your PATH -- add it to your shell profile" ;;
 esac
+
+# --- Noctalia theme engine config -------------------------------------------
+NOCTALIA_THEME_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/noctalia/theme"
+rm -rf "$NOCTALIA_THEME_DIR.bak"
+if [ -d "$NOCTALIA_THEME_DIR" ]; then cp -a "$NOCTALIA_THEME_DIR" "$NOCTALIA_THEME_DIR.bak"; fi
+mkdir -p "$NOCTALIA_THEME_DIR"
+install -m644 "$SRC/theme/noctalia/config.toml" "$NOCTALIA_THEME_DIR/config.toml"
+install -m644 "$SRC/theme/noctalia/fuzzel.tpl"  "$NOCTALIA_THEME_DIR/fuzzel.tpl"
+say "installed Noctalia theme engine to $NOCTALIA_THEME_DIR"
 
 # --- Hyprland config integration --------------------------------------------
 mkdir -p "$CONF_DIR"
@@ -107,7 +119,7 @@ fi
 
 # --- first run ---------------------------------------------------------------
 if command -v hyprctl >/dev/null 2>&1 && hyprctl version >/dev/null 2>&1; then
-    "$BIN_DIR/hypr-wallcolors" && say "applied border colors from the current wallpaper"
+    "$BIN_DIR/hypr-theme" && say "applied wallpaper colors: borders, kitty, fuzzel, cava, btop"
 else
     warn "Hyprland is not running; colors will apply on next start"
 fi

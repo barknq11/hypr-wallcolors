@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Pick a wallpaper from your collection and apply it (sets the wallpaper with
+# the available backend and themes the whole session to match).
+#
+# Shows image thumbnails as icons via fuzzel's dmenu icon protocol.
+#
+#   wallpaper-picker                      pick from ~/Pictures/wallpapers
+#   wallpapers="/path" wallpaper-picker   pick from another folder
+set -euo pipefail
+
+export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
+WALLS="${wallpapers:-$HOME/Pictures/wallpapers}"
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/wallpicker"
+SIZE="100x64"
+
+[[ -d "$WALLS" ]] || { echo "wallpaper folder not found: $WALLS" >&2; exit 1; }
+
+mapfile -t files < <(find "$WALLS" -maxdepth 2 -type f \( \
+    -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o \
+    -iname '*.webp' -o -iname '*.bmp' -o -iname '*.gif' \) 2>/dev/null | sort)
+(( ${#files[@]} )) || { echo "no wallpapers found in $WALLS" >&2; exit 1; }
+
+mkdir -p "$CACHE"
+entries="$(mktemp)"
+declare -A by_name
+for f in "${files[@]}"; do
+    name="$(basename "$f")"
+    thumb="$CACHE/$(printf '%s' "$f" | md5sum | cut -c1-12).png"
+    [[ -f "$thumb" ]] || magick "$f" -thumbnail "${SIZE}^" -gravity center -extent "$SIZE" "$thumb" 2>/dev/null
+    by_name["$name"]="$f"
+    printf '%s\0icon\037%s\n' "$name" "$thumb" >>"$entries"
+done
+
+# fuzzel echoes the chosen label; strip any icon separators/null bytes first.
+wanted="$(fuzzel --dmenu --lines 12 --prompt "  Wallpaper: " --placeholder "Search wallpapers…" \
+    <"$entries" 2>/dev/null | tr -d '\000\037' | head -c 20000)"
+rm -f "$entries"
+
+[[ -z "$wanted" ]] && exit 0
+
+img="${by_name["$wanted"]:-}"
+if [[ -z "$img" ]]; then
+    # fuzzy fallback: filename match
+    for name in "${!by_name[@]}"; do
+        [[ "$name" == *"$wanted"* ]] && img="${by_name[$name]}" && break
+    done
+fi
+[[ -n "$img" ]] && hypr-set-wallpaper "$img"

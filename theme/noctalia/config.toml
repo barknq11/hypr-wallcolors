@@ -1,0 +1,38 @@
+# hypr-theme targets: apps themed from the current wallpaper via Noctalia's
+# template engine. Run automatically by `hypr-theme` on every wallpaper change.
+# Uses the dark palette (see hypr-theme: --default-mode dark).
+
+[templates.kitty]
+input_path = "/usr/share/noctalia/assets/templates/kitty/kitty.conf"
+output_path = "$XDG_CONFIG_HOME/kitty/themes/noctalia.conf"
+post_hook = "bash /usr/share/noctalia/assets/templates/kitty/apply.sh"
+
+[templates.fuzzel]
+input_path = "./fuzzel.tpl"
+output_path = "$XDG_CONFIG_HOME/fuzzel/fuzzel.ini"
+
+# GTK is off by default: it overwrites ~/.config/gtk-3.0/gtk.css and the
+# gtk-4.0 files, clobbering custom themes (e.g. adw-gtk3 symlinks). Uncomment
+# if you want it. A backup of your configs is kept in ~/.config-bak by install.sh.
+#
+# [templates.gtk3]
+# input_path = "/usr/share/noctalia/assets/templates/gtk/gtk3.css"
+# output_path = "$XDG_CONFIG_HOME/gtk-3.0/noctalia.css"
+# post_hook = "bash /usr/share/noctalia/assets/templates/gtk/apply.sh dark"
+# hook_async = false
+#
+# [templates.gtk4]
+# input_path = "/usr/share/noctalia/assets/templates/gtk/gtk4.css"
+# output_path = "$XDG_CONFIG_HOME/gtk-4.0/noctalia.css"
+# post_hook = "bash /usr/share/noctalia/assets/templates/gtk/apply.sh dark"
+# hook_async = false
+
+[templates.cava]
+input_path = "/usr/share/noctalia/assets/templates/cava/cava.ini"
+output_path = "$XDG_CONFIG_HOME/cava/themes/noctalia"
+post_hook = "bash /usr/share/noctalia/assets/templates/cava/apply.sh"
+
+[templates.btop]
+input_path = "/usr/share/noctalia/assets/templates/btop/btop.theme"
+output_path = "$XDG_CONFIG_HOME/btop/themes/noctalia.theme"
+post_hook = "bash /usr/share/noctalia/assets/templates/btop/apply.sh"
