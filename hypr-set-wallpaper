@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+# Set the wallpaper with the first available backend, then recolor the
+# Hyprland window borders to match it.
+#
+#   hypr-set-wallpaper /path/to/image
+#
+# Bind this in your Hyprland config in place of your old wallpaper command so
+# the borders keep in sync (used with swww / hyprpaper / swaybg).
+set -e
+
+img="$1"
+if [ -z "$img" ] || [ ! -f "$img" ]; then
+    echo "usage: hypr-set-wallpaper /path/to/image" >&2
+    exit 1
+fi
+
+if command -v swww >/dev/null 2>&1; then
+    swww img "$img" --transition-type any
+elif command -v hyprpaper >/dev/null 2>&1; then
+    hyprctl hyprpaper unload all >/dev/null 2>&1 || true
+    hyprctl hyprpaper preload "$img" >/dev/null
+    hyprctl hyprpaper wallpaper ",$img" >/dev/null
+elif command -v swaybg >/dev/null 2>&1; then
+    pkill -x swaybg 2>/dev/null || true
+    swaybg -i "$img" -m fill &
+else
+    echo "no supported wallpaper backend found (swww / hyprpaper / swaybg)" >&2
+    exit 1
+fi
+
+exec hypr-wallcolors "$img"

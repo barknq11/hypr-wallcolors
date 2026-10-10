@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+"""Match Hyprland window-border colors to the current wallpaper.
+
+Extracts a small palette from the wallpaper with ImageMagick, picks two
+vibrant colors and turns them into a live gradient for the active window
+border, plus a muted inactive border derived from the same palette.
+
+Works with both the classic `hyprland.conf` parser and the newer Lua config
+(`hyprland.lua`). The wallpaper is auto-detected from PaperLite/swaybg, swww
+or hyprpaper, or you may pass a path explicitly.
+
+Usage:
+    hypr-wallcolors                 # use the current wallpaper
+    hypr-wallcolors /path/to/img    # use a specific image
+"""
+
+import colorsys
+import glob
+import os
+import re
+import subprocess
+import sys
+
+HOME = os.path.expanduser("~")
+HYPR_DIR = os.path.join(HOME, ".config", "hypr")
+COLORS_LUA = os.path.join(HYPR_DIR, "border-colors.lua")
+COLORS_CONF = os.path.join(HYPR_DIR, "border-colors.conf")
+HYPR_LUA = os.path.join(HYPR_DIR, "hyprland.lua")
+HYPR_CONF = os.path.join(HYPR_DIR, "hyprland.conf")
+PAPERLITE_SH = os.path.join(HOME, ".config", "swaybg", "current_wallpaper.sh")
+STATE_FILE = os.path.join(HOME, ".cache", "hypr-wallcolors", "wallpaper")
+
+ANGLE = 45
+PALETTE_SIZE = 16
+FALLBACK = ((0x33, 0xCC, 0xFF), (0x00, 0xFF, 0x99), (0x59, 0x59, 0x59))
+IMG_EXT = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tiff")
+
+
+def hypr_env():
+    """Let hyprctl find the running instance outside a login session."""
+    if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
+        return
+    base = os.environ.get("XDG_RUNTIME_DIR") or "/tmp"
+    for root in (os.path.join(base, "hypr"), "/tmp/hypr"):
+        try:
+            dirs = sorted(glob.glob(os.path.join(root, "*")),
+                          key=os.path.getmtime, reverse=True)
+        except OSError:
+            continue
+        if dirs:
+            os.environ["HYPRLAND_INSTANCE_SIGNATURE"] = os.path.basename(dirs[0])
+            return
+
+
+def run(cmd, **kw):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True,
+                              timeout=15, **kw)
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def wallpaper():
+    if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]):
+        return sys.argv[1]
+
+    # 1. PaperLite / swaybg
+    try:
+        with open(PAPERLITE_SH) as fh:
+            for line in fh:
+                m = re.search(r'swaybg\s+-i\s+"([^"]+)"', line)
+                if m and os.path.isfile(m.group(1)):
+                    return m.group(1)
+    except OSError:
+        pass
+
+    # 3. swww
+    p = run(["swww", "query"])
+    if p and p.returncode == 0:
+        m = re.search(r"currently displaying: image: (.+)$", p.stdout, re.M)
+        if m and os.path.isfile(m.group(1)) and m.group(1).endswith(IMG_EXT):
+            return m.group(1)
+
+    # 4. hyprpaper
+    p = run(["hyprctl", "hyprpaper", "listactive"])
+    if p and p.returncode == 0:
+        for line in p.stdout.splitlines():
+            for tok in line.replace("=", " ").split():
+                if tok.endswith(IMG_EXT) and os.path.isfile(tok):
+                    return tok
+
+    # 5. last path recorded by a previous run / the set-wallpaper helper
+    try:
+        with open(STATE_FILE) as fh:
+            p = fh.readline().strip()
+            if p and os.path.isfile(p):
+                return p
+    except OSError:
+        pass
+    return None
+
+
+def palette(path):
+    p = run(["magick", path, "-resize", "256x256", "-colors", str(PALETTE_SIZE),
+             "-format", "%c", "histogram:info:-"])
+    if not p or p.returncode != 0:
+        return []
+    colors = []
+    for line in p.stdout.splitlines():
+        m = re.match(r"\s*(\d+):.*#([0-9A-Fa-f]{6})", line)
+        if not m:
+            continue
+        hx = m.group(2)
+        rgb = tuple(int(hx[i:i + 2], 16) for i in (0, 2, 4))
+        colors.append((int(m.group(1)), rgb))
+    return colors
+
+
+def hsv(rgb):
+    r, g, b = (c / 255 for c in rgb)
+    return colorsys.rgb_to_hsv(r, g, b)
+
+
+def weight(item):
+    count, rgb = item
+    _, s, v = hsv(rgb)
+    w = 0.25 + s
+    if v < 0.18 or v > 0.96:
+        w *= 0.08
+    if s < 0.08:
+        w *= 0.25
+    return count * w
+
+
+def tune(rgb, s_mul=1.0, s_add=0.0, v_lo=0.0, v_hi=1.0, h_add=0.0):
+    h, s, v = hsv(rgb)
+    h = (h + h_add) % 1.0
+    s = min(1.0, max(0.0, s * s_mul + s_add))
+    v = min(v_hi, max(v_lo, v))
+    r, g, b = colorsys.hsv_to_rgb(h, s, v)
+    return (round(r * 255), round(g * 255), round(b * 255))
+
+
+def choose(colors):
+    ranked = sorted(colors, key=weight, reverse=True)
+    if not ranked:
+        return FALLBACK
+    c1 = ranked[0][1]
+    h1, s1, v1 = hsv(c1)
+    c2 = None
+    for _, c in ranked[1:]:
+        h2, s2, v2 = hsv(c)
+        dh = min(abs(h1 - h2), 1 - abs(h1 - h2))
+        if dh * 2 + abs(v1 - v2) + abs(s1 - s2) > 0.25:
+            c2 = c
+            break
+    active_a = tune(c1, s_mul=1.45, s_add=0.05, v_lo=0.62, v_hi=0.95)
+    if c2 is None:
+        active_b = tune(c1, s_mul=1.45, s_add=0.05, v_lo=0.62, v_hi=0.95, h_add=0.06)
+    else:
+        active_b = tune(c2, s_mul=1.45, s_add=0.05, v_lo=0.62, v_hi=0.95)
+    inactive = tune(c1, s_mul=0.45, v_hi=0.32)
+    return active_a, active_b, inactive
+
+
+def rgba(rgb, alpha):
+    return "rgba(%02x%02x%02x%02x)" % (rgb[0], rgb[1], rgb[2], alpha)
+
+
+def write_files(a, b, inactive):
+    lua = (
+        "-- Generated by hypr-wallcolors. Do not edit by hand.\n"
+        "hl.config({\n"
+        "  general = {\n"
+        "    col = {\n"
+        '      active_border   = { colors = { "%s", "%s" }, angle = %d },\n'
+        '      inactive_border = "%s",\n'
+        "    },\n"
+        "  },\n"
+        "})\n"
+        % (rgba(a, 0xEE), rgba(b, 0xEE), ANGLE, rgba(inactive, 0xAA))
+    )
+    conf = (
+        "# Generated by hypr-wallcolors. Do not edit by hand.\n"
+        "general {\n"
+        "    col.active_border   = %s %s %ddeg\n"
+        "    col.inactive_border = %s\n"
+        "}\n"
+        % (rgba(a, 0xEE), rgba(b, 0xEE), ANGLE, rgba(inactive, 0xAA))
+    )
+    for path, content in ((COLORS_LUA, lua), (COLORS_CONF, conf)):
+        tmp = path + ".tmp"
+        with open(tmp, "w") as fh:
+            fh.write(content)
+        os.replace(tmp, path)
+
+
+def config_mode():
+    if os.path.isfile(HYPR_LUA):
+        return "lua"
+    if os.path.isfile(HYPR_CONF):
+        return "conf"
+    return "lua"  # default to the modern format
+
+
+def apply_live(a, b, inactive):
+    hypr_env()
+    if config_mode() == "lua":
+        expr = 'pcall(dofile, "%s")' % COLORS_LUA
+        p = run(["hyprctl", "eval", expr])
+        if p and p.returncode == 0 and "ok" in p.stdout:
+            return
+    else:
+        args = [rgba(a, 0xEE), rgba(b, 0xEE), "%ddeg" % ANGLE]
+        ok1 = run(["hyprctl", "keyword", "general:col.active_border", " ".join(args)])
+        ok2 = run(["hyprctl", "keyword", "general:col.inactive_border", rgba(inactive, 0xAA)])
+        if ok1 and ok2 and ok1.returncode == 0 and ok2.returncode == 0:
+            return
+    run(["hyprctl", "reload", "config-only"])
+
+
+def record(path):
+    if not path:
+        return
+    try:
+        os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+        with open(STATE_FILE, "w") as fh:
+            fh.write(path + "\n")
+    except OSError:
+        pass
+
+
+def main():
+    wall = wallpaper()
+    record(wall)
+    colors = palette(wall) if wall else []
+    a, b, inactive = choose(colors)
+    os.makedirs(HYPR_DIR, exist_ok=True)
+    write_files(a, b, inactive)
+    apply_live(a, b, inactive)
+
+
+if __name__ == "__main__":
+    main()

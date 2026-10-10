@@ -1,0 +1,8 @@
+[Unit]
+Description=Watch for wallpaper changes to update Hyprland border colors
+
+[Path]
+PathModified=@@WATCH@@
+
+[Install]
+WantedBy=default.target

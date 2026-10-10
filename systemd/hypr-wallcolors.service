@@ -1,0 +1,7 @@
+[Unit]
+Description=Match Hyprland border colors to the current wallpaper
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/hypr-wallcolors
+PassEnvironment=HYPRLAND_INSTANCE_SIGNATURE XDG_RUNTIME_DIR WAYLAND_DISPLAY

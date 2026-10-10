@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# hypr-wallcolors uninstaller
+set -euo pipefail
+
+CONF_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/hypr"
+UNIT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+
+say() { printf '\033[1;34m::\033[0m %s\n' "$*"; }
+
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user disable --now hypr-wallcolors.path 2>/dev/null || true
+    systemctl --user daemon-reload 2>/dev/null || true
+fi
+
+rm -f "$HOME/.local/bin/hypr-wallcolors" \
+      "$HOME/.local/bin/hypr-set-wallpaper" \
+      "$CONF_DIR/border-colors.lua" \
+      "$CONF_DIR/border-colors.conf" \
+      "$UNIT_DIR/hypr-wallcolors.service" \
+      "$UNIT_DIR/hypr-wallcolors.path"
+say "removed scripts, generated colors and systemd units"
+
+# strip the blocks the installer appended
+for f in "$CONF_DIR/hyprland.lua" "$CONF_DIR/hyprland.conf"; do
+    [ -f "$f" ] || continue
+    if grep -q "hypr-wallcolors" "$f"; then
+        sed -i '/>>> hypr-wallcolors >>>/,/<<< hypr-wallcolors <<</d' "$f"
+        say "cleaned $f"
+    fi
+done
+
+say "done. (restore your original col.active_border / reload Hyprland)"
