@@ -35,6 +35,7 @@ install -m755 "$SRC/hypr-wallcolors"     "$BIN_DIR/hypr-wallcolors"
 install -m755 "$SRC/hypr-theme"          "$BIN_DIR/hypr-theme"
 install -m755 "$SRC/hypr-set-wallpaper"  "$BIN_DIR/hypr-set-wallpaper"
 install -m755 "$SRC/wallpaper-picker"    "$BIN_DIR/wallpaper-picker"
+install -m755 "$SRC/wallpaper-picker-gtk" "$BIN_DIR/wallpaper-picker-gtk"
 say "installed scripts to $BIN_DIR"
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;

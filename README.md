@@ -66,8 +66,10 @@ The installer:
 wallpaper-picker
 ```
 
-Shows live thumbnails of `~/Pictures/wallpapers` in fuzzel; pick one and it's
-applied + themed. Use another folder with: `wallpapers=/path wallpaper-picker`.
+Opens a **GTK grid** showing every wallpaper as a wide thumbnail grid, sorted
+**newest first** — click one to apply it (sets the wallpaper + full theme).
+Falls back to a fuzzel thumb menu if GTK/pygobject isn't installed. Use another
+folder with: `wallpapers=/path wallpaper-picker`.
 
 Bind it in your Hyprland config. **Important:** Hyprland's `exec` PATH is only
 `/usr/local/bin:/usr/bin`, so always use the full path for scripts in
