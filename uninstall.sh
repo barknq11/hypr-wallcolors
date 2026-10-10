@@ -1,6 +1,25 @@
 #!/usr/bin/env bash
 # hypr-wallcolors uninstaller
+# Refuses to run accidentally: pass `--yes`, or confirm interactively.
 set -euo pipefail
+
+case "${1:-}" in
+    --yes|-y)
+        ;;
+    --help|-h)
+        echo "usage: $0 [--yes]" >&2
+        echo "Removes scripts, theme engine, systemd units and config blocks." >&2
+        exit 0
+        ;;
+    "")
+        read -rp "Remove hypr-wallcolors entirely? Type 'uninstall' to continue: " ans
+        if [ "$ans" != "uninstall" ]; then echo "aborted."; exit 1; fi
+        ;;
+    *)
+        echo "unknown argument: $1 (use --yes or run interactively)" >&2
+        exit 2
+        ;;
+esac
 
 CONF_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/hypr"
 UNIT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
