@@ -13,14 +13,21 @@ export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 WALLS="${wallpapers:-$HOME/Pictures/wallpapers}"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/wallpicker"
 SIZE="100x64"
+LOG="$CACHE/run.log"
+log() { { echo "$(date '+%H:%M:%S') $*"; } >>"$LOG"; }
 
-[[ -d "$WALLS" ]] || { echo "wallpaper folder not found: $WALLS" >&2; exit 1; }
+mkdir -p "$CACHE"
+log "launch pid=$$ HOME=$HOME WALLS=$WALLS"
+
+[[ -d "$WALLS" ]] || { log "no folder: $WALLS"; echo "wallpaper folder not found: $WALLS" >&2; exit 1; }
 
 # --- GTK grid (preferred) -----------------------------------------------------
 if python3 -c "import gi; gi.require_version('Gtk','4.0')" 2>/dev/null; then
-    exec python3 "$HOME/.local/bin/wallpaper-picker-gtk" "$WALLS"
+    log "gtk branch -> exec python3 wallpaper-picker-gtk"
+    exec python3 "$HOME/.local/bin/wallpaper-picker-gtk" "$WALLS" 2>>"$LOG"
 fi
 
+log "gtk unavailable, fuzzel branch"
 # --- fuzzel fallback ----------------------------------------------------------
 mapfile -t files < <(find "$WALLS" -maxdepth 2 -type f \( \
     -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o \
