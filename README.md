@@ -27,7 +27,7 @@ btop                  monitor theme
 Install them, e.g. on Arch / CachyOS:
 
 ```sh
-sudo pacman -S noctalia imagemagick python python-gobject gtk4 swayosd
+sudo pacman -S noctalia imagemagick python swayosd
 ```
 
 ## Install
@@ -40,8 +40,8 @@ cd ~/hypr-wallcolors
 
 The installer:
 
-1. copies `hypr-wallcolors`, `hypr-theme`, `hypr-set-wallpaper`,
-   `wallpaper-picker` and `wallpaper-picker-gtk` to `~/.local/bin`;
+1. copies `hypr-wallcolors`, `hypr-theme` and `hypr-set-wallpaper` to
+   `~/.local/bin`;
 2. installs the Noctalia template engine config to
    `~/.config/noctalia/theme/`;
 3. patches your `hyprland.lua` / `hyprland.conf` (idempotent, marked with
@@ -49,11 +49,11 @@ The installer:
    - loads the generated border colors;
    - registers the **full `hypr-theme` hook on login** (borders + kitty +
      fuzzel + cava + btop);
-   - binds **SUPER+W → wallpaper-picker** — skips it if you already have a `W`
-     keybind;
 4. installs and enables a systemd user **path unit** that re-runs the whole
    theme on every wallpaper change;
 5. applies the theme immediately.
+
+> Picking a wallpaper is a separate tool: [hypr-wallpicker](https://github.com/barknq11/hypr-wallpicker).
 
 ### Wallpaper backends
 
@@ -67,22 +67,11 @@ The installer:
 
 ### Wallpaper picker (SUPER+W)
 
-```
-wallpaper-picker
-```
+Use [hypr-wallpicker](https://github.com/barknq11/hypr-wallpicker) — a tiny GTK4
+grid that shows every wallpaper newest-first and applies the one you click. It
+calls `hypr-set-wallpaper`, so picking one here themes everything automatically.
 
-Opens a **GTK grid** showing every wallpaper as a wide thumbnail grid, sorted
-**newest first** — click one to apply it (sets the wallpaper + full theme).
-Falls back to a fuzzel thumb menu if GTK/pygobject isn't installed. Use another
-folder with: `wallpapers=/path wallpaper-picker`.
-
-`install.sh` binds it to **SUPER+W** automatically (it skips this if a `W`
-keybind already exists). If you bind it manually, remember that Hyprland's
-`exec` PATH is only `/usr/local/bin:/usr/bin`, so wrap the path in `bash -c`:
-
-```lua
-hl.bind("SUPER + W", hl.dsp.exec_cmd("bash -c '$HOME/.local/bin/wallpaper-picker'"))
-```
+`install.sh` over there binds **SUPER+W** for you.
 
 ### Commands
 
@@ -91,8 +80,8 @@ hypr-wallcolors                 # borders only
 hypr-wallcolors /path/to/img    # borders only, specific image
 hypr-theme                      # borders + kitty + fuzzel + cava + btop
 hypr-set-wallpaper /path/img    # set wallpaper + full theme
-wallpaper-picker                # pick a new wallpaper (GTK grid)
 ```
+> Pick your wallpaper visually with [hypr-wallpicker](https://github.com/barknq11/hypr-wallpicker).
 
 ## Customizing
 
@@ -106,9 +95,8 @@ wallpaper-picker                # pick a new wallpaper (GTK grid)
 
 ## Dialogue / OSD keys
 
-`install.sh` binds **SUPER+W → wallpaper-picker** and the full-theme login hook
-automatically. It does **not** add volume/brightness OSD binds. For swayosd OSD,
-bind:
+`install.sh` wires the full-theme login hook automatically, but does **not**
+touch OSD binds. For swayosd volume/brightness popups, bind:
 
 ```lua
 hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("swayosd-client --output-volume raise 2>/dev/null || wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"), { locked = true, repeating = true })
@@ -137,6 +125,8 @@ kitty's old `kitty.conf`, cava `config`, btop `btop.conf`) if you want them back
 ## Porting to a new machine
 
 1. Copy the folder over (or clone from git).
-2. `./install.sh` — scripts, theme engine, border colors, full-theme login hook,
-   SUPER+W wallpaper picker and the wallpaper-change watcher are all set up.
-3. Install `swayosd` if you want the volume/brightness OSD.
+2. `./install.sh` — scripts, theme engine, border colors, full-theme login hook
+   and the wallpaper-change watcher are all set up.
+3. Install [hypr-wallpicker](https://github.com/barknq11/hypr-wallpicker) for a
+   visual wallpaper picker bound to SUPER+W.
+4. Install `swayosd` if you want the volume/brightness OSD.

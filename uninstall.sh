@@ -34,14 +34,11 @@ fi
 rm -f "$HOME/.local/bin/hypr-wallcolors" \
       "$HOME/.local/bin/hypr-theme" \
       "$HOME/.local/bin/hypr-set-wallpaper" \
-      "$HOME/.local/bin/wallpaper-picker" \
-      "$HOME/.local/bin/wallpaper-picker-gtk" \
       "$CONF_DIR/border-colors.lua" \
       "$CONF_DIR/border-colors.conf" \
       "$UNIT_DIR/hypr-wallcolors.service" \
       "$UNIT_DIR/hypr-wallcolors.path"
 rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/noctalia/theme"
-rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/wallpicker"
 say "removed scripts, generated colors, theme engine and systemd units"
 
 # strip the blocks the installer appended

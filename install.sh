@@ -21,16 +21,12 @@ command -v hyprctl  >/dev/null 2>&1 || missing="$missing hyprctl"
 command -v python3  >/dev/null 2>&1 || missing="$missing python3"
 command -v noctalia >/dev/null 2>&1 || missing="$missing noctalia"
 command -v magick   >/dev/null 2>&1 || command -v convert >/dev/null 2>&1 || missing="$missing imagemagick"
-# the grid wallpaper picker needs GTK4 + Python bindings
-if ! python3 -c "import gi; gi.require_version('Gtk','4.0')" 2>/dev/null; then
-    missing="$missing python-gobject(gtk4)"
-fi
 if [ -n "$missing" ]; then
     warn "missing commands:$missing"
     if command -v pacman >/dev/null 2>&1; then
-        warn "install with: sudo pacman -S noctalia imagemagick python python-gobject gtk4"
+        warn "install with: sudo pacman -S noctalia imagemagick python"
         warn "optional (OSD popups): sudo pacman -S swayosd"
-    elif command -v apt    >/dev/null 2>&1; then warn "install with: sudo apt install imagemagick python3 gir1.2-gtk-4.0"
+    elif command -v apt    >/dev/null 2>&1; then warn "install with: sudo apt install imagemagick python3"
     elif command -v dnf    >/dev/null 2>&1; then warn "install with: sudo dnf install ImageMagick python3"
     fi
 fi
@@ -40,8 +36,6 @@ mkdir -p "$BIN_DIR"
 install -m755 "$SRC/hypr-wallcolors"     "$BIN_DIR/hypr-wallcolors"
 install -m755 "$SRC/hypr-theme"          "$BIN_DIR/hypr-theme"
 install -m755 "$SRC/hypr-set-wallpaper"  "$BIN_DIR/hypr-set-wallpaper"
-install -m755 "$SRC/wallpaper-picker"    "$BIN_DIR/wallpaper-picker"
-install -m755 "$SRC/wallpaper-picker-gtk" "$BIN_DIR/wallpaper-picker-gtk"
 say "installed scripts to $BIN_DIR"
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;
@@ -92,21 +86,6 @@ EOF
         say "patched $CONF_DIR/hyprland.lua"
     else
         say "hyprland.lua already integrated"
-    fi
-
-    # add the SUPER+W wallpaper-picker bind unless a W bind already exists
-    if grep -Eq '\+ *W(\b|")' "$CONF_DIR/hyprland.lua"; then
-        say "found an existing W keybind -- leaving it alone"
-    elif grep -q 'wallpaper-picker' "$CONF_DIR/hyprland.lua"; then
-        say "wallpaper-picker bind already present"
-    else
-        cat >> "$CONF_DIR/hyprland.lua" <<'EOF'
-
--- >>> hypr-wallcolors: wallpaper picker >>>
-hl.bind("SUPER + W", hl.dsp.exec_cmd("bash -c '$HOME/.local/bin/wallpaper-picker'"))
--- <<< hypr-wallcolors: wallpaper picker <<<
-EOF
-        say "bound SUPER+W to the wallpaper picker"
     fi
 elif [ "$MODE" = conf ]; then
     if ! grep -q "hypr-wallcolors" "$CONF_DIR/hyprland.conf"; then
